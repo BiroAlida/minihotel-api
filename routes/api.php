@@ -12,3 +12,5 @@ Route::get('/user', function (Request $request) {
 Route::get('/rooms', [RoomController::class, 'index']);
 
 Route::post('/reservations', [ReservationController::class, 'store']);
+
+Route::get('/reservations', [ReservationController::class, 'index']);

@@ -11,6 +11,6 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/rooms', [RoomController::class, 'index']);
 
-Route::post('/reservations', [ReservationController::class, 'store']);
+Route::post('/reservations', [ReservationController::class, 'store']); // POST endpoint for /api/reservations
 
-Route::get('/reservations', [ReservationController::class, 'index']);
+Route::get('/reservations', [ReservationController::class, 'index']); // GET endpoint for /api/reservations

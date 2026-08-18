@@ -1,10 +1,12 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { getReservations } from '../api/reservations';
+import ReservationForm from '../components/ReservationForm.vue';
 
 const reservations = ref([]);
 const loading = ref(true);
 const error = ref(null);
+const showForm = ref(false);
 
 async function loadReservations() {
     loading.value = true;
@@ -21,6 +23,15 @@ async function loadReservations() {
     }
 }
 
+function handleCreated(reservation) {
+    reservations.value.push(reservation);
+    showForm.value = false;
+}
+
+function handleCancel() {
+    showForm.value = false;
+}
+
 onMounted(() => {
     loadReservations();
 });
@@ -29,14 +40,36 @@ onMounted(() => {
 <template>
     <div class="min-h-screen bg-gray-100 p-8">
         <div class="mx-auto max-w-7xl">
-            <div class="mb-8">
-                <h1 class="text-3xl font-bold text-gray-900">
-                    Reservations
-                </h1>
 
-                <p class="mt-2 text-gray-600">
-                    Manage hotel reservations.
-                </p>
+            <div class="mb-8 flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">
+                        Reservations
+                    </h1>
+
+                    <p class="mt-2 text-gray-600">
+                        Manage hotel reservations.
+                    </p>
+                </div>
+
+                <button
+                    v-if="!showForm"
+                    type="button"
+                    @click="showForm = true"
+                    class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+                >
+                    + New Reservation
+                </button>
+            </div>
+
+            <div
+                v-if="showForm"
+                class="mb-8"
+            >
+                <ReservationForm
+                    @created="handleCreated"
+                    @cancel="handleCancel"
+                />
             </div>
 
             <div
@@ -112,6 +145,7 @@ onMounted(() => {
                     </tbody>
                 </table>
             </div>
+
         </div>
     </div>
 </template>

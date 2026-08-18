@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\GuestController;
 use App\Http\Controllers\Api\ReservationController;
 use App\Http\Controllers\Api\RoomController;
 use Illuminate\Http\Request;
@@ -14,3 +15,5 @@ Route::get('/rooms', [RoomController::class, 'index']);
 Route::post('/reservations', [ReservationController::class, 'store']); // POST endpoint for /api/reservations
 
 Route::get('/reservations', [ReservationController::class, 'index']); // GET endpoint for /api/reservations
+
+Route::get('/guests', [GuestController::class, 'index']); // Guest GET API endpoint

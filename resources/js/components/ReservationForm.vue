@@ -1,6 +1,8 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { createReservation } from '../api/reservations';
+import { getGuests } from '../api/guests';
+import { getRooms } from '../api/rooms';
 
 const emit = defineEmits(['created', 'cancel']);
 
@@ -11,8 +13,32 @@ const form = ref({
     check_out: '',
 });
 
+const guests = ref([]);
+const rooms = ref([]);
+
 const loading = ref(false);
+const loadingOptions = ref(true);
 const error = ref(null);
+
+async function loadOptions() {
+    loadingOptions.value = true;
+    error.value = null;
+
+    try {
+         const [guestsResponse, roomsResponse] = await Promise.all([
+            getGuests(),
+            getRooms(),
+        ]);
+
+        guests.value = guestsResponse.data;
+        rooms.value = roomsResponse.data;
+
+    } catch (err) {
+        error.value = err;
+    } finally {
+        loadingOptions.value = false;
+    }
+}
 
 async function submit() {
     loading.value = true;
@@ -33,6 +59,11 @@ async function submit() {
         loading.value = false;
     }
 }
+
+onMounted(() => {
+    loadOptions();
+});
+
 </script>
 
 <template>
@@ -59,14 +90,24 @@ async function submit() {
                     Guest ID
                 </label>
 
-                <input
+                <select
                     id="guest_id"
                     v-model="form.guest_id"
-                    type="number"
-                    min="1"
                     required
                     class="w-full rounded-md border border-gray-300 px-3 py-2"
                 >
+                    <option value="" disabled>
+                        Select a guest
+                    </option>
+
+                    <option
+                        v-for="guest in guests"
+                        :key="guest.id"
+                        :value="guest.id"
+                    >
+                        {{ guest.first_name }} {{ guest.last_name }}
+                    </option>
+                </select>
             </div>
 
             <div>
@@ -77,14 +118,24 @@ async function submit() {
                     Room ID
                 </label>
 
-                <input
+                <select
                     id="room_id"
                     v-model="form.room_id"
-                    type="number"
-                    min="1"
                     required
                     class="w-full rounded-md border border-gray-300 px-3 py-2"
                 >
+                    <option value="" disabled>
+                        Select a room
+                    </option>
+
+                    <option
+                        v-for="room in rooms"
+                        :key="room.id"
+                        :value="room.id"
+                    >
+                        Room {{ room.number }}
+                    </option>
+                </select>
             </div>
 
             <div class="grid gap-5 md:grid-cols-2">

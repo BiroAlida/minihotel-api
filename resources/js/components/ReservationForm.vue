@@ -1,8 +1,8 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { createReservation } from '../api/reservations';
 import { getGuests } from '../api/guests';
-import { getRooms } from '../api/rooms';
+import { getAvailableRooms } from '../api/rooms';
 
 const emit = defineEmits(['created', 'cancel']);
 
@@ -17,26 +17,56 @@ const guests = ref([]);
 const rooms = ref([]);
 
 const loading = ref(false);
-const loadingOptions = ref(true);
 const error = ref(null);
 
-async function loadOptions() {
-    loadingOptions.value = true;
-    error.value = null;
+// When the check_in or check_out date is changed, the loadAvailableRooms() gets called again, and the form gets the new rooms based on the changed date
+watch(
+    [
+        () => form.value.check_in,
+        () => form.value.check_out,
+    ],
+    () => {
+        loadAvailableRooms();
+    }
+);
+
+async function loadGuests() {
+    try {
+        const response = await getGuests();
+
+        guests.value = response.data;
+    } catch (err) {
+        error.value = err;
+    }
+}
+
+async function loadAvailableRooms() {
+    if (!form.value.check_in || !form.value.check_out) {
+        rooms.value = [];
+        return;
+    }
+
+    if (form.value.check_out <= form.value.check_in) {
+        rooms.value = [];
+        return;
+    }
 
     try {
-         const [guestsResponse, roomsResponse] = await Promise.all([
-            getGuests(),
-            getRooms(),
-        ]);
+        const response = await getAvailableRooms(form.value.check_in, form.value.check_out);
+        rooms.value = response.data;
 
-        guests.value = guestsResponse.data;
-        rooms.value = roomsResponse.data;
+        // If the previously selected room is no longer available, then we delete the selection
+        const roomStillAvailable = rooms.value.some(
+            room => room.id === Number(form.value.room_id)
+        );
+
+        if (!roomStillAvailable) {
+            form.value.room_id = '';
+        }
 
     } catch (err) {
         error.value = err;
-    } finally {
-        loadingOptions.value = false;
+        rooms.value = [];
     }
 }
 
@@ -61,7 +91,7 @@ async function submit() {
 }
 
 onMounted(() => {
-    loadOptions();
+    loadGuests();
 });
 
 </script>
@@ -80,13 +110,11 @@ onMounted(() => {
 
         <form
             @submit.prevent="submit"
-            class="space-y-5"
-        >
+            class="space-y-5">
             <div>
                 <label
                     for="guest_id"
-                    class="mb-1 block text-sm font-medium text-gray-700"
-                >
+                    class="mb-1 block text-sm font-medium text-gray-700">
                     Guest ID
                 </label>
 
@@ -94,8 +122,7 @@ onMounted(() => {
                     id="guest_id"
                     v-model="form.guest_id"
                     required
-                    class="w-full rounded-md border border-gray-300 px-3 py-2"
-                >
+                    class="w-full rounded-md border border-gray-300 px-3 py-2">
                     <option value="" disabled>
                         Select a guest
                     </option>
@@ -103,47 +130,25 @@ onMounted(() => {
                     <option
                         v-for="guest in guests"
                         :key="guest.id"
-                        :value="guest.id"
-                    >
+                        :value="guest.id">
                         {{ guest.first_name }} {{ guest.last_name }}
                     </option>
                 </select>
             </div>
-
             <div>
-                <label
-                    for="room_id"
-                    class="mb-1 block text-sm font-medium text-gray-700"
-                >
-                    Room ID
-                </label>
-
-                <select
-                    id="room_id"
-                    v-model="form.room_id"
-                    required
-                    class="w-full rounded-md border border-gray-300 px-3 py-2"
-                >
-                    <option value="" disabled>
-                        Select a room
-                    </option>
-
-                    <option
-                        v-for="room in rooms"
-                        :key="room.id"
-                        :value="room.id"
-                    >
-                        Room {{ room.number }}
-                    </option>
-                </select>
+                <p v-if="!form.check_in || !form.check_out" class="mt-1 text-sm text-gray-500">
+                    Select check-in and check-out dates to see available rooms.
+                </p>
+                <p v-else-if="rooms.length === 0" class="mt-1 text-sm text-red-600">
+                    No rooms are available for the selected dates.
+                </p>
             </div>
 
             <div class="grid gap-5 md:grid-cols-2">
                 <div>
                     <label
                         for="check_in"
-                        class="mb-1 block text-sm font-medium text-gray-700"
-                    >
+                        class="mb-1 block text-sm font-medium text-gray-700">
                         Check-in
                     </label>
 
@@ -152,15 +157,13 @@ onMounted(() => {
                         v-model="form.check_in"
                         type="date"
                         required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2"
-                    >
+                        class="w-full rounded-md border border-gray-300 px-3 py-2">
                 </div>
 
                 <div>
                     <label
                         for="check_out"
-                        class="mb-1 block text-sm font-medium text-gray-700"
-                    >
+                        class="mb-1 block text-sm font-medium text-gray-700">
                         Check-out
                     </label>
 
@@ -169,15 +172,36 @@ onMounted(() => {
                         v-model="form.check_out"
                         type="date"
                         required
-                        class="w-full rounded-md border border-gray-300 px-3 py-2"
-                    >
+                        class="w-full rounded-md border border-gray-300 px-3 py-2">
                 </div>
             </div>
 
-            <div
-                v-if="error"
-                class="rounded-md bg-red-50 p-4 text-sm text-red-700"
-            >
+            <div>
+                <label
+                    for="room_id"
+                    class="mb-1 block text-sm font-medium text-gray-700">
+                    Room ID
+                </label>
+
+                <select
+                    id="room_id"
+                    v-model="form.room_id"
+                    required
+                    class="w-full rounded-md border border-gray-300 px-3 py-2">
+                    <option value="" disabled>
+                        Select a room
+                    </option>
+
+                    <option
+                        v-for="room in rooms"
+                        :key="room.id"
+                        :value="room.id">
+                        Room {{ room.number }}
+                    </option>
+                </select>
+            </div>
+
+            <div v-if="error" class="rounded-md bg-red-50 p-4 text-sm text-red-700">
                 Something went wrong while creating the reservation.
             </div>
 
@@ -185,16 +209,14 @@ onMounted(() => {
                 <button
                     type="button"
                     @click="emit('cancel')"
-                    class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-                >
+                    class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">
                     Cancel
                 </button>
 
                 <button
                     type="submit"
                     :disabled="loading"
-                    class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
+                    class="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50">
                     {{ loading ? 'Creating...' : 'Create reservation' }}
                 </button>
             </div>

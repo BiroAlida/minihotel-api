@@ -18,7 +18,7 @@ class RoomFactory extends Factory
     public function definition(): array
     {
         return [
-             'number' => fake()->unique()->numberBetween(101, 399),
+            'number' => fake()->unique()->numberBetween(101, 399),
             'floor' => fake()->numberBetween(1, 3),
             'status' => fake()->randomElement([
                 'available',
